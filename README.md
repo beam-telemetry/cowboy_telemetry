@@ -1,7 +1,7 @@
 cowboy_telemetry
 =====
 
-An OTP library
+Telemetry instrumentation for Cowboy
 
 Build
 -----

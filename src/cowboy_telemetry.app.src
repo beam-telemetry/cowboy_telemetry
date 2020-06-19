@@ -1,5 +1,5 @@
 {application, cowboy_telemetry,
- [{description, "An OTP library"},
+ [{description, "Telemetry instrumentation for Cowboy"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications,
