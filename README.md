@@ -1,6 +1,8 @@
 cowboy_telemetry
 =====
 
+![Erlang CI](https://github.com/beam-telemetry/cowboy_telemetry/workflows/Erlang%20CI/badge.svg)
+
 Telemetry instrumentation for Cowboy
 
 Build
