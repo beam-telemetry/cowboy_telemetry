@@ -7,7 +7,7 @@
 -include_lib("stdlib/include/assert.hrl").
 
 all() ->
-    [hello].
+    [successful_request].
 
 init_per_suite(Config) ->
     application:ensure_all_started(ranch),
@@ -24,23 +24,29 @@ end_per_suite(_Config) ->
     application:stop(ranch),
     application:stop(telemetry).
 
-hello(Config) ->
+successful_request(Config) ->
     Events = [
         [cowboy, request, start],
-        [cowboy, request, stop],
-        [cowboy, request, exception],
-        [cowboy, request, early_error]
+        [cowboy, request, stop]
     ],
-    telemetry:attach_many(?config(id, Config), Events, fun ?MODULE:echo_event/4, #{pid => self()}),
+    telemetry:attach_many(?config(id, Config), Events, fun ?MODULE:echo_event/4, self()),
     {ok, {{_Version, 200, _ReasonPhrase}, _Headers, _Body}} =
         httpc:request(get, {"http://localhost:8080", []}, [], []),
     receive
-        {event, [cowboy, request, start], Measurements, _Metadata, _Config} ->
-            ?assertEqual([system_time], maps:keys(Measurements))
+        {[cowboy, request, start], StartMeasurements, StartMetadata} ->
+            ?assertEqual([system_time], maps:keys(StartMeasurements)),
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
-        1000 -> ct:fail(timeout_start_event)
+        1000 -> ct:fail(start_event)
+    end,
+    receive
+        {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
+            ?assertEqual([duration], maps:keys(StopMeasurements)),
+            ?assertEqual([response, stream_id], maps:keys(StopMetadata))
+    after
+        1000 -> ct:fail(stop_event)
     end,
     ?assertEqual(true, true).
 
-echo_event(Event, Measurements, Metadata, #{pid := Pid} = Config) ->
-        Pid ! {event, Event, Measurements, Metadata, Config}.
+echo_event(Event, Measurements, Metadata, Pid) ->
+        Pid ! {Event, Measurements, Metadata}.
