@@ -4,11 +4,11 @@
   {registered, []},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    telemetry
    ]},
   {env,[]},
   {modules, []},
-
   {licenses, ["Apache 2.0"]},
-  {links, []}
+  {links, [{"Github", "https://github.com/beam-telemetry/cowboy_telemetry"}]}
  ]}.
