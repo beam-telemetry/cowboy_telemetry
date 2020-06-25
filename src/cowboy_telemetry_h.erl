@@ -7,18 +7,24 @@
 -export([terminate/3]).
 -export([early_error/5]).
 
+-record(state, {
+    next :: any(),
+    status :: undefined | active,
+    start_time :: integer()
+}).
+
 init(StreamID, Req, Opts) ->
     StartTime = emit_start_event(StreamID, Req),
     {Commands, Next} = cowboy_stream:init(StreamID, Req, Opts),
-    {Commands, [Next | StartTime]}.
+    {Commands, #state{next=Next, start_time=StartTime}}.
 
-data(StreamID, IsFin, Data, [Next0 | StartTime]) ->
+data(StreamID, IsFin, Data, State=#state{next=Next0}) ->
     {Commands, Next} = cowboy_stream:data(StreamID, IsFin, Data, Next0),
-    {Commands, [Next | StartTime]}.
+    {Commands, State#state{next=Next}}.
 
-info(StreamID, Info, [Next0 | StartTime]) ->
+info(StreamID, Info, State=#state{next=Next0, start_time=StartTime}) ->
     {Commands, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    State =
+    Status =
         case Commands of
             [{response, _, _, _} = Response] ->
                 emit_stop_event(StreamID, StartTime, Response),
@@ -29,16 +35,16 @@ info(StreamID, Info, [Next0 | StartTime]) ->
                         emit_exception_event(StreamID, StartTime, Reason, ErrorResponse),
                         done;
                     _ ->
-                        StartTime
+                        undefined
                 end;
             _ ->
-                StartTime
+                undefined
         end,
-    {Commands, [Next | State]}.
+    {Commands, State#state{next=Next, status=Status}}.
 
-terminate(StreamID, Reason, [Next | done]) ->
+terminate(StreamID, Reason, #state{status=done, next=Next}) ->
     cowboy_stream:terminate(StreamID, Reason, Next);
-terminate(StreamID, Reason, [Next | StartTime]) ->
+terminate(StreamID, Reason, #state{next=Next, start_time=StartTime}) ->
     case Reason of
         {socket_error, _, _} = Reason ->
             emit_stop_error_event(StreamID, StartTime, Reason);
