@@ -57,12 +57,9 @@ terminate(StreamID, Reason, [Next | done]) ->
 terminate(StreamID, Reason, [Next | StartTime]) ->
     case Reason of
         {socket_error, _, _} = Reason ->
-            EndTime = erlang:monotonic_time(),
-            telemetry:execute(
-                [cowboy, request, stop],
-                #{duration => EndTime - StartTime},
-                #{stream_id => StreamID, error => Reason}
-            );
+            emit_early_terminate_error_event(StreamID, StartTime, Reason);
+        {connection_error, _, _} = Reason ->
+            emit_early_terminate_error_event(StreamID, StartTime, Reason);
         _ -> ignore
     end,
     cowboy_stream:terminate(StreamID, Reason, Next).
@@ -76,3 +73,11 @@ early_error(StreamID, Reason, PartialReq, Resp0, Opts) ->
         #{stream_id => StreamID, reason => Reason, partial_req => PartialReq, response => Resp}
     ),
     Resp.
+
+emit_early_terminate_error_event(StreamID, StartTime, Reason) ->
+    EndTime = erlang:monotonic_time(),
+    telemetry:execute(
+        [cowboy, request, stop],
+        #{duration => EndTime - StartTime},
+        #{stream_id => StreamID, error => Reason}
+    ).

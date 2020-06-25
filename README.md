@@ -35,9 +35,9 @@ A span event emitted at the end of a request.
 * `measurements`: `#{duration => native_time}`
 * `metadata`: `#{stream_id => cowboy_stream:streamid(), response => cowboy_stream:resp_command()}`
 
-If the request is terminated by the client before a response is sent, the metadata contains an `error` instead of a `response`,
+If the request is terminated early - by the client or by the server - before a response is sent, the metadata contains an `error` instead of a `response`,
 
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), error => error()}`
+* `metadata`: `#{stream_id => cowboy_stream:streamid(), error => early_termination_error()}`
 
 #### `[cowboy, request, exception]`
 
@@ -57,5 +57,7 @@ Additional types for reference:
 
 ```erlang
 - type error_response() :: {error_response, cowboy:http_status(), cowboy:http_headers(), cowboy_req:resp_body()}.
-- type error() :: {socket_error, atom(), cowboy_stream:human_reason()}
+
+- type early_termination_error() :: {socket_error, closed | atom(), cowboy_stream:human_reason()}
+                                    | {connection_error, timeout, cowboy_stream:human_reason()}.
 ```

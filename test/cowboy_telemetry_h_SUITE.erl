@@ -7,7 +7,11 @@
 -include_lib("stdlib/include/assert.hrl").
 
 all() ->
-    [successful_request, failed_request, client_timeout_request, early_error_request].
+    [successful_request,
+     failed_request,
+     client_timeout_request,
+     idle_timeout_request,
+     early_error_request].
 
 init_per_suite(Config) ->
     application:ensure_all_started(ranch),
@@ -15,11 +19,13 @@ init_per_suite(Config) ->
     Dispatch = cowboy_router:compile([{"localhost", [
                                       {"/success", test_h, success},
                                       {"/slow", test_h, slow},
+                                      {"/extra_slow", test_h, extra_slow},
                                       {"/failure", test_h, failure}
                                      ]}]),
     {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{
                   env => #{dispatch => Dispatch},
-                  stream_handlers => [cowboy_telemetry_h, cowboy_stream_h]
+                  stream_handlers => [cowboy_telemetry_h, cowboy_stream_h],
+                  idle_timeout => 150
               }
     ),
     Config.
@@ -114,6 +120,36 @@ client_timeout_request(_Config) ->
     receive
         {[cowboy, request, exception], _, _} ->
             ct:fail(client_timeout_request_unexpected_exception_event)
+    after
+        100 -> ok
+    end.
+
+idle_timeout_request(_Config) ->
+    Events = [
+        [cowboy, request, start],
+        [cowboy, request, stop],
+        [cowboy, request, exception]
+    ],
+    telemetry:attach_many(idle_timeout_request, Events, fun ?MODULE:echo_event/4, self()),
+    {error, socket_closed_remotely} =
+        httpc:request(head, {"http://localhost:8080/extra_slow", []}, [], []),
+    receive
+        {[cowboy, request, start], StartMeasurements, StartMetadata} ->
+            ?assertEqual([system_time], maps:keys(StartMeasurements)),
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+    after
+        1000 -> ct:fail(idle_timeout_request_start_event)
+    end,
+    receive
+        {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
+            ?assertEqual([duration], maps:keys(StopMeasurements)),
+            ?assertEqual([error, stream_id], maps:keys(StopMetadata))
+    after
+        1000 -> ct:fail(idle_timeout_request_stop_event)
+    end,
+    receive
+        {[cowboy, request, exception], _, _} ->
+            ct:fail(idle_timeout_request_unexpected_exception_event)
     after
         100 -> ok
     end.
