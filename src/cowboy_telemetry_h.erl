@@ -31,9 +31,12 @@
 
     % Response info
     start_time :: integer(),
-    response :: undefined | {response, cowboy:http_status(), cowboy:http_headers(), cowboy_req:resp_body()},
     error_response :: undefined | {error_response, cowboy:http_status(), cowboy:http_headers(), iodata()},
     reason :: undefined | any(),
+
+    % Chunked response data
+    chunked_resp_status :: undefined | cowboy:http_status(),
+    chunked_resp_headers :: undefined | cowbo:http_headers(),
 
     % Span stop tracking
     emit :: undefined | stop | exception | done
@@ -82,20 +85,20 @@ early_error(StreamID, Reason, PartialReq, Resp0, Opts) ->
 fold([], State) ->
     State;
 
-fold([{response, _, _, _} = Response | Tail], State0) ->
-    State = State0#state{emit=stop, response=Response},
-    fold(Tail, State);
+fold([{response, _, _, _} = Response | Tail], #state{streamid=StreamID, start_time=StartTime} = State) ->
+    emit_stop_event(StreamID, StartTime, Response),
+    fold(Tail, State#state{emit=done});
 
-fold([{data, fin, _} | Tail], State0) ->
-    State = State0#state{emit=stop},
-    fold(Tail, State);
+fold([{data, fin, _} | Tail], #state{streamid=StreamID, start_time=StartTime, chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders} = State) ->
+    emit_stop_event(StreamID, StartTime, {response, RespStatus, RespHeaders, nil}),
+    fold(Tail, State#state{emit=done});
 
 fold([{internal_error, {'EXIT', _, Reason}, _} | Tail], State0) ->
     State = State0#state{emit=exception, reason=Reason},
     fold(Tail, State);
 
 fold([{headers, RespStatus, RespHeaders} | Tail], State0) ->
-    State = State0#state{response={response, RespStatus, RespHeaders, nil}},
+    State = State0#state{chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders},
     fold(Tail, State);
 
 fold([{error_response, _, _, _} = ErrorResponse | Tail], State0) ->
@@ -113,10 +116,6 @@ fold([_ | Tail], State) ->
 span_start(#state{streamid=StreamID, request_process=RequestProcess}, SystemTime, Req) ->
     emit_start_event(StreamID, SystemTime, Req, RequestProcess).
 
-
-span_stop(#state{emit=stop, streamid=StreamID, start_time=StartTime, response=Response} = State) ->
-    emit_stop_event(StreamID, StartTime, Response),
-    State#state{emit=done};
 
 span_stop(#state{emit=error, streamid=StreamID, start_time=StartTime, reason=Reason} = State) ->
     emit_stop_error_event(StreamID, StartTime, Reason),
