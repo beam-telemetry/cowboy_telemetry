@@ -22,58 +22,55 @@
 % chunk_timeout_request  == init -> info(headers) -> info(data|nofin) -> terminate(connection_error) ^^
 % bad_request            == early_error
 
+
+% Data that needs to be accumulated across handler callbacks
 -record(state, {
     next :: any(),
 
-    % Request identity
+    % Request info
     streamid :: cowboy_stream:streamid(),
-    request_process :: pid(),
-
-    % Response info
     start_time :: integer(),
-    error_response :: undefined | {error_response, cowboy:http_status(), cowboy:http_headers(), iodata()},
-    reason :: undefined | any(),
+
+    % Span stop tracking
+    emit :: undefined | done,
 
     % Chunked response data
     chunked_resp_status :: undefined | cowboy:http_status(),
-    chunked_resp_headers :: undefined | cowbo:http_headers(),
-
-    % Span stop tracking
-    emit :: undefined | stop | exception | done
+    chunked_resp_headers :: undefined | cowbo:http_headers()
 }).
+
+% Data that needs to be accumulated while we fold over Commands
+-record(acc, {
+    req :: undefined | cowboy_req:req(),
+    system_time :: undefined | erlang:system_time(),
+    error_response :: undefined | {error_response, cowboy:http_status(), cowboy:http_headers(), cowboy_req:resp_body()}
+}).
+
 
 init(StreamID, Req, Opts) ->
     StartTime = erlang:monotonic_time(),
     SystemTime = erlang:system_time(),
     {Commands, Next} = cowboy_stream:init(StreamID, Req, Opts),
-    State = fold(Commands, #state{next=Next, streamid=StreamID, start_time=StartTime}),
-    span_start(State, SystemTime, Req),
-    {Commands, State}.
-
+    {Commands, fold(Commands, #state{next=Next, streamid=StreamID, start_time=StartTime}, #acc{req=Req, system_time=SystemTime})}.
 
 data(StreamID, IsFin, Data, State=#state{next=Next0}) ->
     {Commands, Next} = cowboy_stream:data(StreamID, IsFin, Data, Next0),
     {Commands, State#state{next=Next}}.
 
-
 info(StreamID, Info, State0=#state{next=Next0}) ->
     {Commands, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    State1 = fold(Commands, State0#state{next=Next}),
-    span_stop(State1),
-    {Commands, State1}.
-
+    {Commands, fold(Commands, State0#state{next=Next}, #acc{})}.
 
 terminate(StreamID, Reason, #state{emit=done, next=Next}) ->
     cowboy_stream:terminate(StreamID, Reason, Next);
 
-terminate(StreamID, {ErrorType, _, _} = Reason, #state{next=Next} = State)
+terminate(StreamID, {ErrorType, _, _} = Reason, #state{next=Next, start_time=StartTime})
     when ErrorType == socket_error; ErrorType == connection_error ->
-    span_stop(State#state{emit=error, reason=Reason}),
+    emit_stop_error_event(StreamID, StartTime, Reason),
     cowboy_stream:terminate(StreamID, Reason, Next);
 
 terminate(StreamID, Reason, #state{next=Next}) ->
     cowboy_stream:terminate(StreamID, Reason, Next).
-
 
 early_error(StreamID, Reason, PartialReq, Resp0, Opts) ->
     Resp = cowboy_stream:early_error(StreamID, Reason, PartialReq, Resp0, Opts),
@@ -82,51 +79,33 @@ early_error(StreamID, Reason, PartialReq, Resp0, Opts) ->
 
 %
 
-fold([], State) ->
+fold([], State, _Acc) ->
     State;
 
-fold([{response, _, _, _} = Response | Tail], #state{streamid=StreamID, start_time=StartTime} = State) ->
+fold([{response, _, _, _} = Response | Tail], #state{streamid=StreamID, start_time=StartTime} = State, Acc) ->
     emit_stop_event(StreamID, StartTime, Response),
-    fold(Tail, State#state{emit=done});
+    fold(Tail, State#state{emit=done}, Acc);
 
-fold([{data, fin, _} | Tail], #state{streamid=StreamID, start_time=StartTime, chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders} = State) ->
+fold([{data, fin, _} | Tail], #state{streamid=StreamID, start_time=StartTime, chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders} = State, Acc) ->
     emit_stop_event(StreamID, StartTime, {response, RespStatus, RespHeaders, nil}),
-    fold(Tail, State#state{emit=done});
+    fold(Tail, State#state{emit=done}, Acc);
 
-fold([{internal_error, {'EXIT', _, Reason}, _} | Tail], State0) ->
-    State = State0#state{emit=exception, reason=Reason},
-    fold(Tail, State);
-
-fold([{headers, RespStatus, RespHeaders} | Tail], State0) ->
-    State = State0#state{chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders},
-    fold(Tail, State);
-
-fold([{error_response, _, _, _} = ErrorResponse | Tail], State0) ->
-    State = State0#state{error_response=ErrorResponse},
-    fold(Tail, State);
-
-fold([{spawn, Pid, _} | Tail], State0) ->
-    State = State0#state{request_process=Pid},
-    fold(Tail, State);
-
-fold([_ | Tail], State) ->
-    fold(Tail, State).
-
-
-span_start(#state{streamid=StreamID, request_process=RequestProcess}, SystemTime, Req) ->
-    emit_start_event(StreamID, SystemTime, Req, RequestProcess).
-
-
-span_stop(#state{emit=error, streamid=StreamID, start_time=StartTime, reason=Reason} = State) ->
-    emit_stop_error_event(StreamID, StartTime, Reason),
-    State#state{emit=done};
-
-span_stop(#state{emit=exception, streamid=StreamID, start_time=StartTime, error_response=ErrorResponse, reason=Reason} = State) ->
+fold([{internal_error, {'EXIT', _, Reason}, _} | Tail], #state{streamid=StreamID, start_time=StartTime} = State, #acc{error_response=ErrorResponse}) ->
     emit_exception_event(StreamID, StartTime, Reason, ErrorResponse),
-    State#state{emit=done};
+    fold(Tail, State#state{emit=done}, #acc{});
 
-span_stop(State) ->
-    State.
+fold([{headers, RespStatus, RespHeaders} | Tail], State, Acc) ->
+    fold(Tail, State#state{chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders}, Acc);
+
+fold([{error_response, _, _, _} = ErrorResponse | Tail], State, Acc) ->
+    fold(Tail, State, Acc#acc{error_response=ErrorResponse});
+
+fold([{spawn, RequestProcess, _} | Tail], #state{streamid=StreamID} = State, #acc{req=Req, system_time=SystemTime}) ->
+    emit_start_event(StreamID, SystemTime, Req, RequestProcess),
+    fold(Tail, State, #acc{});
+
+fold([_ | Tail], State, Acc) ->
+    fold(Tail, State, Acc).
 
 
 emit_start_event(StreamID, SystemTime, Req, RequestProcess) ->
