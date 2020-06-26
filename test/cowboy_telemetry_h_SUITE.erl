@@ -196,8 +196,7 @@ chunk_timeout_request(_Config) ->
         [cowboy, request, exception]
     ],
     telemetry:attach_many(chunk_timeout_request, Events, fun ?MODULE:echo_event/4, self()),
-    {ok, {{_Version, 200, _ReasonPhrase}, _Headers, _Body}} =
-        httpc:request(head, {"http://localhost:8080/chunked_slow", []}, [], []),
+    httpc:request(head, {"http://localhost:8080/chunked_slow", []}, [], []),
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
