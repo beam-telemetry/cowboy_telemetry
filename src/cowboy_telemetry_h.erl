@@ -12,16 +12,14 @@
 % There are multiple ways a request flows through the stream handler callbacks.
 % All start with `init`, where we emit our span start event. In each flow, the location
 % where we emit the span stop event is designated with ^^. All events are based on the
-% Commands returned by cowboy.
+% Commands returned by cowboy in `info`, or data in `terminate`.
 %
 % successful_request     == init -> info(response) ^^ -> info(stop) -> terminate(normal)
 % failed_request         == init -> info(error_response) ^^ -> terminate(internal_error)
-% chunked_request        == init -> info(headers) -> info(data|nofin) -> info(data|fin) ^^ -> info(stop) -> terminate(normal)
 % client_timeout_request == init -> terminate(socket_error) ^^
 % idle_timeout_request   == init -> terminate(connection_error) ^^
+% chunked_request        == init -> info(headers) -> info(data|nofin) -> info(data|fin) ^^ -> info(stop) -> terminate(normal)
 % chunk_timeout_request  == init -> info(headers) -> info(data|nofin) -> terminate(connection_error) ^^
-% bad_request            == early_error
-
 
 % Data that needs to be accumulated across handler callbacks
 -record(state, {
@@ -46,29 +44,31 @@
     error_response :: undefined | {error_response, cowboy:http_status(), cowboy:http_headers(), cowboy_req:resp_body()}
 }).
 
-
 init(StreamID, Req, Opts) ->
     StartTime = erlang:monotonic_time(),
     SystemTime = erlang:system_time(),
     {Commands, Next} = cowboy_stream:init(StreamID, Req, Opts),
-    {Commands, fold(Commands, #state{next=Next, streamid=StreamID, start_time=StartTime}, #acc{req=Req, system_time=SystemTime})}.
+    {Commands, fold(Commands,
+                    #state{next=Next, streamid=StreamID, start_time=StartTime},
+                    #acc{req=Req, system_time=SystemTime})}.
+
+info(StreamID, Info, State=#state{next=Next0}) ->
+    {Commands, Next} = cowboy_stream:info(StreamID, Info, Next0),
+    {Commands, fold(Commands,
+                    State#state{next=Next},
+                    #acc{})}.
 
 data(StreamID, IsFin, Data, State=#state{next=Next0}) ->
     {Commands, Next} = cowboy_stream:data(StreamID, IsFin, Data, Next0),
     {Commands, State#state{next=Next}}.
 
-info(StreamID, Info, State0=#state{next=Next0}) ->
-    {Commands, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    {Commands, fold(Commands, State0#state{next=Next}, #acc{})}.
-
 terminate(StreamID, Reason, #state{emit=done, next=Next}) ->
     cowboy_stream:terminate(StreamID, Reason, Next);
-
 terminate(StreamID, {ErrorType, _, _} = Reason, #state{next=Next, start_time=StartTime})
-    when ErrorType == socket_error; ErrorType == connection_error ->
+    when ErrorType == socket_error;
+         ErrorType == connection_error ->
     emit_stop_error_event(StreamID, StartTime, Reason),
     cowboy_stream:terminate(StreamID, Reason, Next);
-
 terminate(StreamID, Reason, #state{next=Next}) ->
     cowboy_stream:terminate(StreamID, Reason, Next).
 
@@ -114,7 +114,6 @@ fold([{spawn, RequestProcess, _} | Tail],
 
 fold([_ | Tail], State, Acc) ->
     fold(Tail, State, Acc).
-
 
 emit_start_event(StreamID, SystemTime, Req, RequestProcess) ->
     telemetry:execute(
