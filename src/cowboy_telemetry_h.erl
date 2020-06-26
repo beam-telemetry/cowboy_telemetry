@@ -82,15 +82,21 @@ early_error(StreamID, Reason, PartialReq, Resp0, Opts) ->
 fold([], State, _Acc) ->
     State;
 
-fold([{response, _, _, _} = Response | Tail], #state{streamid=StreamID, start_time=StartTime} = State, Acc) ->
+fold([{response, _, _, _} = Response | Tail],
+     #state{streamid=StreamID, start_time=StartTime} = State,
+     Acc) ->
     emit_stop_event(StreamID, StartTime, Response),
     fold(Tail, State#state{emit=done}, Acc);
 
-fold([{data, fin, _} | Tail], #state{streamid=StreamID, start_time=StartTime, chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders} = State, Acc) ->
+fold([{data, fin, _} | Tail],
+     #state{streamid=StreamID, start_time=StartTime, chunked_resp_status=RespStatus, chunked_resp_headers=RespHeaders} = State,
+     Acc) ->
     emit_stop_event(StreamID, StartTime, {response, RespStatus, RespHeaders, nil}),
-    fold(Tail, State#state{emit=done}, Acc);
+    fold(Tail, State#state{emit=done, chunked_resp_status=undefined, chunked_resp_headers = undefined}, Acc);
 
-fold([{internal_error, {'EXIT', _, Reason}, _} | Tail], #state{streamid=StreamID, start_time=StartTime} = State, #acc{error_response=ErrorResponse}) ->
+fold([{internal_error, {'EXIT', _, Reason}, _} | Tail],
+     #state{streamid=StreamID, start_time=StartTime} = State,
+     #acc{error_response=ErrorResponse}) ->
     emit_exception_event(StreamID, StartTime, Reason, ErrorResponse),
     fold(Tail, State#state{emit=done}, #acc{});
 
@@ -100,7 +106,9 @@ fold([{headers, RespStatus, RespHeaders} | Tail], State, Acc) ->
 fold([{error_response, _, _, _} = ErrorResponse | Tail], State, Acc) ->
     fold(Tail, State, Acc#acc{error_response=ErrorResponse});
 
-fold([{spawn, RequestProcess, _} | Tail], #state{streamid=StreamID} = State, #acc{req=Req, system_time=SystemTime}) ->
+fold([{spawn, RequestProcess, _} | Tail],
+     #state{streamid=StreamID} = State,
+     #acc{req=Req, system_time=SystemTime}) ->
     emit_start_event(StreamID, SystemTime, Req, RequestProcess),
     fold(Tail, State, #acc{});
 
