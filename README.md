@@ -26,7 +26,7 @@ cowboy:start_clear(http, [{port, Port}], #{
 A span event emitted at the beginning of a request.
 
 * `measurements`: `#{system_time => erlang:system_time()}`
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), req => cowboy_req:req()}`
+* `metadata`: `#{stream_id => cowboy_stream:streamid(), req => cowboy_req:req(), request_process => pid()}`
 
 #### `[cowboy, request, stop]`
 
@@ -35,7 +35,7 @@ A span event emitted at the end of a request.
 * `measurements`: `#{duration => native_time}`
 * `metadata`: `#{stream_id => cowboy_stream:streamid(), response => response()}`
 
-If the request is streamed in chunks, the resp_body reported will be `nil`.
+If the request is streamed in chunks, the `resp_body` reported will be `nil`.
 
 If the request is terminated early - by the client or by the server - before a response is sent, the metadata contains an `error` instead of a `response`,
 
@@ -65,3 +65,7 @@ Additional types for reference:
 - type early_termination_error() :: {socket_error, closed | atom(), cowboy_stream:human_reason()}
                                     | {connection_error, timeout, cowboy_stream:human_reason()}.
 ```
+
+Note:
+
+* The `telemetry` handlers will be executed from the cowboy connection process, not from the request process. The `start` event will contain the pid of the `request_process`.

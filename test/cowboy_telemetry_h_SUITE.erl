@@ -13,8 +13,8 @@ all() ->
      chunked_request,
      client_timeout_request,
      idle_timeout_request,
-     chunked_idle_timeout_request,
-     early_error_request
+     chunk_timeout_request,
+     bad_request
      ].
 
 init_per_suite(Config) ->
@@ -51,7 +51,7 @@ successful_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(successful_request_start_event)
     end,
@@ -81,7 +81,7 @@ chunked_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(chunked_request_start_event)
     end,
@@ -111,7 +111,7 @@ failed_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(failed_request_start_event)
     end,
@@ -141,7 +141,7 @@ client_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(client_timeout_request_start_event)
     end,
@@ -171,7 +171,7 @@ idle_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(idle_timeout_request_start_event)
     end,
@@ -189,44 +189,44 @@ idle_timeout_request(_Config) ->
         100 -> ok
     end.
 
-chunked_idle_timeout_request(_Config) ->
+chunk_timeout_request(_Config) ->
     Events = [
         [cowboy, request, start],
         [cowboy, request, stop],
         [cowboy, request, exception]
     ],
-    telemetry:attach_many(chunked_idle_timeout_request, Events, fun ?MODULE:echo_event/4, self()),
+    telemetry:attach_many(chunk_timeout_request, Events, fun ?MODULE:echo_event/4, self()),
     {ok, {{_Version, 200, _ReasonPhrase}, _Headers, _Body}} =
         httpc:request(head, {"http://localhost:8080/chunked_slow", []}, [], []),
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
     after
-        1000 -> ct:fail(chunked_idle_timeout_request_start_event)
+        1000 -> ct:fail(chunk_timeout_request_start_event)
     end,
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assertEqual([duration], maps:keys(StopMeasurements)),
             ?assertEqual([error, stream_id], maps:keys(StopMetadata))
     after
-        1000 -> ct:fail(chunked_idle_timeout_request_stop_event)
+        1000 -> ct:fail(chunk_timeout_request_stop_event)
     end,
     receive
         {[cowboy, request, exception], _, _} ->
-            ct:fail(chunked_idle_timeout_request_unexpected_exception_event)
+            ct:fail(chunk_timeout_request_unexpected_exception_event)
     after
         100 -> ok
     end.
 
-early_error_request(_Config) ->
+bad_request(_Config) ->
     Events = [
         [cowboy, request, early_error],
         [cowboy, request, start],
         [cowboy, request, stop],
         [cowboy, request, exception]
     ],
-    telemetry:attach_many(early_error_request, Events, fun ?MODULE:echo_event/4, self()),
+    telemetry:attach_many(bad_request, Events, fun ?MODULE:echo_event/4, self()),
     {ok, {{_Version, 501, _ReasonPhrase}, _Headers, _Body}} =
         httpc:request(trace, {"http://localhost:8080/", []}, [], []),
     receive
@@ -234,23 +234,23 @@ early_error_request(_Config) ->
             ?assertEqual([system_time], maps:keys(EarlyErrorMeasurements)),
             ?assertEqual([partial_req,reason,response,stream_id], maps:keys(EarlyErrorMetadata))
     after
-        1000 -> ct:fail(early_error_request_start_event)
+        1000 -> ct:fail(bad_request_start_event)
     end,
     receive
         {[cowboy, request, start], _, _} ->
-            ct:fail(early_error_request_unexpected_start_event)
+            ct:fail(bad_request_unexpected_start_event)
     after
         100 -> ok
     end,
     receive
         {[cowboy, request, stop], _, _} ->
-            ct:fail(early_error_request_unexpected_stop_event)
+            ct:fail(bad_request_unexpected_stop_event)
     after
         100 -> ok
     end,
     receive
         {[cowboy, request, exception], _, _} ->
-            ct:fail(early_error_request_unexpected_exception_event)
+            ct:fail(bad_request_unexpected_exception_event)
     after
         100 -> ok
     end.
