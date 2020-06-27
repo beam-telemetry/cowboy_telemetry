@@ -39,24 +39,19 @@
 
 % Data that needs to be accumulated while we fold over Commands
 -record(acc, {
-    req :: undefined | cowboy_req:req(),
-    system_time :: undefined | erlang:system_time(),
     error_response :: undefined | {error_response, cowboy:http_status(), cowboy:http_headers(), cowboy_req:resp_body()}
 }).
 
 init(StreamID, Req, Opts) ->
     StartTime = erlang:monotonic_time(),
     SystemTime = erlang:system_time(),
+    emit_start_event(StreamID, SystemTime, Req),
     {Commands, Next} = cowboy_stream:init(StreamID, Req, Opts),
-    {Commands, fold(Commands,
-                    #state{next=Next, streamid=StreamID, start_time=StartTime},
-                    #acc{req=Req, system_time=SystemTime})}.
+    {Commands, #state{next=Next, streamid=StreamID, start_time=StartTime}}.
 
 info(StreamID, Info, State=#state{next=Next0}) ->
     {Commands, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    {Commands, fold(Commands,
-                    State#state{next=Next},
-                    #acc{})}.
+    {Commands, fold(Commands, State#state{next=Next}, #acc{})}.
 
 data(StreamID, IsFin, Data, State=#state{next=Next0}) ->
     {Commands, Next} = cowboy_stream:data(StreamID, IsFin, Data, Next0),
@@ -106,20 +101,14 @@ fold([{headers, RespStatus, RespHeaders} | Tail], State, Acc) ->
 fold([{error_response, _, _, _} = ErrorResponse | Tail], State, Acc) ->
     fold(Tail, State, Acc#acc{error_response=ErrorResponse});
 
-fold([{spawn, RequestProcess, _} | Tail],
-     #state{streamid=StreamID} = State,
-     #acc{req=Req, system_time=SystemTime}) ->
-    emit_start_event(StreamID, SystemTime, Req, RequestProcess),
-    fold(Tail, State, #acc{});
-
 fold([_ | Tail], State, Acc) ->
     fold(Tail, State, Acc).
 
-emit_start_event(StreamID, SystemTime, Req, RequestProcess) ->
+emit_start_event(StreamID, SystemTime, Req) ->
     telemetry:execute(
         [cowboy, request, start],
         #{system_time => SystemTime},
-        #{stream_id => StreamID, req => Req, request_process => RequestProcess}
+        #{stream_id => StreamID, req => Req}
     ).
 
 emit_stop_event(StreamID, StartTime, Response) ->

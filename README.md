@@ -26,7 +26,7 @@ cowboy:start_clear(http, [{port, Port}], #{
 A span event emitted at the beginning of a request.
 
 * `measurements`: `#{system_time => erlang:system_time()}`
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), req => cowboy_req:req(), request_process => pid()}`
+* `metadata`: `#{stream_id => cowboy_stream:streamid(), req => cowboy_req:req()}`
 
 #### `[cowboy, request, stop]`
 
@@ -68,4 +68,4 @@ Additional types for reference:
 
 Note:
 
-* The `telemetry` handlers will be executed from the cowboy connection process, not from the request process. The `start` event will contain the pid of the `request_process`.
+* The `telemetry` handlers are executed from the cowboy connection process, not from the request process.

@@ -51,7 +51,7 @@ successful_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(successful_request_start_event)
     end,
@@ -81,7 +81,7 @@ chunked_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(chunked_request_start_event)
     end,
@@ -111,7 +111,7 @@ failed_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(failed_request_start_event)
     end,
@@ -141,7 +141,7 @@ client_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(client_timeout_request_start_event)
     end,
@@ -171,7 +171,7 @@ idle_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(idle_timeout_request_start_event)
     end,
@@ -200,7 +200,7 @@ chunk_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, request_process, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(chunk_timeout_request_start_event)
     end,
