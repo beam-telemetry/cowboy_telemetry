@@ -51,14 +51,14 @@ successful_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, streamid], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(successful_request_start_event)
     end,
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assertEqual([duration], maps:keys(StopMeasurements)),
-            ?assertEqual([response, stream_id], maps:keys(StopMetadata))
+            ?assert(is_map_key(streamid, StopMetadata))
     after
         1000 -> ct:fail(successful_request_stop_event)
     end,
@@ -81,14 +81,14 @@ chunked_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, streamid], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(chunked_request_start_event)
     end,
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assertEqual([duration], maps:keys(StopMeasurements)),
-            ?assertEqual([response, stream_id], maps:keys(StopMetadata))
+            ?assert(is_map_key(streamid, StopMetadata))
     after
         1000 -> ct:fail(chunked_request_stop_event)
     end,
@@ -111,14 +111,17 @@ failed_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, streamid], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(failed_request_start_event)
     end,
     receive
         {[cowboy, request, exception], ExceptionMeasurements, ExceptionMetadata} ->
             ?assertEqual([duration], maps:keys(ExceptionMeasurements)),
-            ?assertEqual([error_response, kind, reason, stream_id], maps:keys(ExceptionMetadata))
+            ?assert(is_map_key(streamid, ExceptionMetadata)),
+            ?assert(is_map_key(kind, ExceptionMetadata)),
+            ?assert(is_map_key(reason, ExceptionMetadata)),
+            ?assert(is_map_key(stacktrace, ExceptionMetadata))
     after
         1000 -> ct:fail(failed_request_exception_event)
     end,
@@ -141,14 +144,15 @@ client_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, streamid], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(client_timeout_request_start_event)
     end,
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assertEqual([duration], maps:keys(StopMeasurements)),
-            ?assertEqual([error, stream_id], maps:keys(StopMetadata))
+            ?assert(is_map_key(streamid, StopMetadata)),
+            ?assert(is_map_key(error, StopMetadata))
     after
         1000 -> ct:fail(client_timeout_request_stop_event)
     end,
@@ -171,14 +175,15 @@ idle_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, streamid], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(idle_timeout_request_start_event)
     end,
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assertEqual([duration], maps:keys(StopMeasurements)),
-            ?assertEqual([error, stream_id], maps:keys(StopMetadata))
+            ?assert(is_map_key(streamid, StopMetadata)),
+            ?assert(is_map_key(error, StopMetadata))
     after
         1000 -> ct:fail(idle_timeout_request_stop_event)
     end,
@@ -200,14 +205,15 @@ chunk_timeout_request(_Config) ->
     receive
         {[cowboy, request, start], StartMeasurements, StartMetadata} ->
             ?assertEqual([system_time], maps:keys(StartMeasurements)),
-            ?assertEqual([req, stream_id], maps:keys(StartMetadata))
+            ?assertEqual([req, streamid], maps:keys(StartMetadata))
     after
         1000 -> ct:fail(chunk_timeout_request_start_event)
     end,
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assertEqual([duration], maps:keys(StopMeasurements)),
-            ?assertEqual([error, stream_id], maps:keys(StopMetadata))
+            ?assert(is_map_key(streamid, StopMetadata)),
+            ?assert(is_map_key(error, StopMetadata))
     after
         1000 -> ct:fail(chunk_timeout_request_stop_event)
     end,
@@ -231,7 +237,7 @@ bad_request(_Config) ->
     receive
         {[cowboy, request, early_error], EarlyErrorMeasurements, EarlyErrorMetadata} ->
             ?assertEqual([system_time], maps:keys(EarlyErrorMeasurements)),
-            ?assertEqual([partial_req,reason,response,stream_id], maps:keys(EarlyErrorMetadata))
+            ?assert(is_map_key(streamid, EarlyErrorMetadata))
     after
         1000 -> ct:fail(bad_request_start_event)
     end,

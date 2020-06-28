@@ -32,39 +32,26 @@ A span event emitted at the beginning of a request.
 
 A span event emitted at the end of a request.
 
-* `measurements`: `#{duration => native_time}`
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), response => response()}`
+* `measurements`: `#{duration => native_time()}`
+* `metadata`: `cowboy_metrics_h:metrics()`
 
-If the request is streamed in chunks, the `resp_body` reported will be `nil`.
+If the request is terminated early - by the client or by the server - before a response is sent, the metadata will also contain an `error`:
 
-If the request is terminated early - by the client or by the server - before a response is sent, the metadata contains an `error` instead of a `response`,
-
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), error => early_termination_error()}`
+* `metadata`: `cowboy_metrics_h:metrics()` + `#{error => cowboy_stream:reason()}`
 
 #### `[cowboy, request, exception]`
 
 A span event emitted if the request process exits.
 
-* `measurements`: `#{duration => native_time}`
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), kind => exit, reason => any(), response => error_response()}`
+* `measurements`: `#{duration => native_time()}`
+* `metadata`: `cowboy_metrics_h:metrics()` + `#{kind => exit, reason => cowboy_stream:reason(), stacktrace => list()}`
 
 #### `[cowboy, request, early_error]`
 
 A single event emitted when Cowboy itself returns an `early_error` response before executing any handlers.
 
-* `measurements`: `#{duration => native_time}`
-* `metadata`: `#{stream_id => cowboy_stream:streamid(), reason => cowboy_stream:reason(), partial_req => cowboy_stream:partial_req()}`
-
-Additional types for reference:
-
-```erlang
-- type response() :: {response, cowboy:http_status(), cowboy:http_headers(), nil | cowboy_req:resp_body()}.
-
-- type error_response() :: {error_response, cowboy:http_status(), cowboy:http_headers(), cowboy_req:resp_body()}.
-
-- type early_termination_error() :: {socket_error, closed | atom(), cowboy_stream:human_reason()}
-                                    | {connection_error, timeout, cowboy_stream:human_reason()}.
-```
+* `measurements`: `#{system_time => erlang:system_time()}`
+* `metadata`: `cowboy_metrics_h:metrics()`
 
 Note:
 
