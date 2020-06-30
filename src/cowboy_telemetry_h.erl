@@ -55,26 +55,21 @@ metrics_callback(Metrics) ->
         metadata(Metrics, #{})).
 
 measurements(Metrics) ->
-    Metadata = maps:with([req_body_length, resp_body_length], Metrics),
+    Measurements = maps:with([req_body_length, resp_body_length], Metrics),
     Durations =
         #{duration => duration(req_start, req_end, Metrics),
           req_body_duration => duration(req_body_start, req_body_end, Metrics),
           resp_duration => duration(resp_start, resp_end, Metrics)},
-    maps:merge(Metadata, Durations).
+    maps:merge(Measurements, Durations).
 
 metadata(Metrics, Extra) ->
     Metadata = maps:with([pid, streamid, req, resp_headers, resp_status, reason, procs, informational, ref], Metrics),
     maps:merge(Metadata, Extra).
 
-% Helpers
-
 duration(StartKey, EndKey, Metrics) ->
-    duration(get(StartKey, Metrics), get(EndKey, Metrics)).
+    duration(maps:get(StartKey, Metrics, undefined), maps:get(EndKey, Metrics, undefined)).
 
 duration(Start, End) when Start =:= undefined; End =:= undefined ->
     undefined;
 duration(Start, End) ->
     End - Start.
-
-get(Key, Map) ->
-   maps:get(Key, Map, undefined).
