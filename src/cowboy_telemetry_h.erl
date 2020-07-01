@@ -32,10 +32,11 @@ add_metrics_callback(Opts) ->
     maps:put(metrics_callback, fun metrics_callback/1, Opts).
 
 metrics_callback(#{early_error_time := Time} = Metrics) when is_number(Time) ->
+    {RespBodyLength, Metadata} = maps:take(resp_body_length, Metrics),
     telemetry:execute(
         [cowboy, request, early_error],
-        #{system_time => erlang:system_time()},
-        Metrics);
+        #{system_time => erlang:system_time(), resp_body_length => RespBodyLength},
+        Metadata);
 metrics_callback(#{reason := {internal_error, {'EXIT', _, {_, Stacktrace}}, _}} = Metrics) ->
     telemetry:execute(
         [cowboy, request, exception],

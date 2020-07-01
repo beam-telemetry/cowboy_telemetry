@@ -249,7 +249,8 @@ bad_request(_Config) ->
         httpc:request(trace, {"http://localhost:8080/", []}, [], []),
     receive
         {[cowboy, request, early_error], EarlyErrorMeasurements, EarlyErrorMetadata} ->
-            ?assertEqual([system_time], maps:keys(EarlyErrorMeasurements)),
+            ?assert(is_map_key(system_time, EarlyErrorMeasurements)),
+            ?assert(is_map_key(resp_body_length, EarlyErrorMeasurements)),
             ?assert(is_map_key(streamid, EarlyErrorMetadata))
     after
         1000 -> ct:fail(bad_request_start_event)
