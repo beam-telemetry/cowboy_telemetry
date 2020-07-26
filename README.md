@@ -55,9 +55,15 @@ A single event emitted when Cowboy itself returns an `early_error` response befo
 
 ### Types
 
-* `metrics`: `duration`, `req_body_duration`, `resp_duration`, `req_body_length`, and `resp_body_length` from `cowboy_metrics_h:metrics()`
-* `metadata`: `pid`, `streamid`, `req`, `resp_headers`, `resp_status`, `reason`, `procs`, `informational`, and `ref` from `cowboy_metrics_h:metrics()`
-* `cowboy_metrics_h:metrics()`: Defined in [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/f673e191b30ab440440c924476bb03000fff52c6/src/cowboy_metrics_h.erl#L46)
+* `measurements()`:
+  * `duration :: req_start - req_end` see [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/master/src/cowboy_metrics_h.erl#L75)
+  * `req_body_duration :: req_body_start - req_body_end` see [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/master/src/cowboy_metrics_h.erl#L80)
+  * `resp_duration :: resp_start - resp_end` see [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/master/src/cowboy_metrics_h.erl#L87)
+  * `req_body_length :: non_neg_integer()`
+  * `resp_body_length :: non_neg_integer()`
+* `metadata()`:
+  * `pid`, `streamid`, `req`, `resp_headers`, `resp_status`, `reason`, `procs`, `informational`, and `ref` from `cowboy_metrics_h:metrics()`
+* `cowboy_metrics_h:metrics()`: Defined in [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/master/src/cowboy_metrics_h.erl#L46)
 
 Note:
 
