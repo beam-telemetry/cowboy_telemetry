@@ -61,8 +61,7 @@ measurements(Metrics) ->
         #{duration => duration(req_start, req_end, Metrics),
           req_body_duration => duration(req_body_start, req_body_end, Metrics),
           resp_duration => duration(resp_start, resp_end, Metrics)},
-    Durations1 = maps:filter(fun(_K, V) -> V =/= undefined end, Durations),
-    maps:merge(Measurements, Durations1).
+    maps:merge(Measurements, Durations).
 
 metadata(Metrics, Extra) ->
     Metadata = maps:with([pid, streamid, req, resp_headers, resp_status, reason, procs, informational, ref], Metrics),
@@ -72,6 +71,6 @@ duration(StartKey, EndKey, Metrics) ->
     duration(maps:get(StartKey, Metrics, undefined), maps:get(EndKey, Metrics, undefined)).
 
 duration(Start, End) when Start =:= undefined; End =:= undefined ->
-    undefined;
+    0;
 duration(Start, End) ->
     End - Start.

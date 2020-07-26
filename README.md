@@ -55,7 +55,7 @@ A single event emitted when Cowboy itself returns an `early_error` response befo
 
 ### Types
 
-* `metrics`: `duration`, `req_body_duration` (if there is a request body), `resp_duration`, `req_body_length`, and `resp_body_length` from `cowboy_metrics_h:metrics()`
+* `metrics`: `duration`, `req_body_duration`, `resp_duration`, `req_body_length`, and `resp_body_length` from `cowboy_metrics_h:metrics()`
 * `metadata`: `pid`, `streamid`, `req`, `resp_headers`, `resp_status`, `reason`, `procs`, `informational`, and `ref` from `cowboy_metrics_h:metrics()`
 * `cowboy_metrics_h:metrics()`: Defined in [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/f673e191b30ab440440c924476bb03000fff52c6/src/cowboy_metrics_h.erl#L46)
 

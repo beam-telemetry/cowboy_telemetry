@@ -58,7 +58,7 @@ successful_request(_Config) ->
     receive
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assert(is_map_key(duration, StopMeasurements)),
-            ?assert(not is_map_key(req_body_duration, StopMeasurements)), % GET request, no request body
+            ?assert(is_map_key(req_body_duration, StopMeasurements)),
             ?assert(is_map_key(req_body_length, StopMeasurements)),
             ?assert(is_map_key(resp_duration, StopMeasurements)),
             ?assert(is_map_key(resp_body_length, StopMeasurements)),
