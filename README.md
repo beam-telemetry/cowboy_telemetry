@@ -32,26 +32,32 @@ A span event emitted at the beginning of a request.
 
 A span event emitted at the end of a request.
 
-* `measurements`: `#{duration => native_time()}`
-* `metadata`: `cowboy_metrics_h:metrics()`
+* `measurements`: `measurements()`
+* `metadata`: `metadata()`
 
 If the request is terminated early - by the client or by the server - before a response is sent, the metadata will also contain an `error`:
 
-* `metadata`: `cowboy_metrics_h:metrics()` + `#{error => cowboy_stream:reason()}`
+* `metadata`: `metadata()` + `#{error => cowboy_stream:reason()}`
 
 #### `[cowboy, request, exception]`
 
 A span event emitted if the request process exits.
 
-* `measurements`: `#{duration => native_time()}`
-* `metadata`: `cowboy_metrics_h:metrics()` + `#{kind => exit, reason => cowboy_stream:reason(), stacktrace => list()}`
+* `measurements`: `measurements()`
+* `metadata`: `metadata()` + `#{kind => exit, stacktrace => list()}`
 
 #### `[cowboy, request, early_error]`
 
 A single event emitted when Cowboy itself returns an `early_error` response before executing any handlers.
 
-* `measurements`: `#{system_time => erlang:system_time()}`
-* `metadata`: `cowboy_metrics_h:metrics()`
+* `measurements`: `#{system_time => erlang:system_time(), resp_body_length => non_neg_integer()}`
+* `metadata`: `metadata()` without `procs` or `informational`
+
+### Types
+
+* `metrics`: `duration`, `req_body_duration`, `resp_duration`, `req_body_length`, and `resp_body_length` from `cowboy_metrics_h:metrics()`
+* `metadata`: `pid`, `streamid`, `req`, `resp_headers`, `resp_status`, `reason`, `procs`, `informational`, and `ref` from `cowboy_metrics_h:metrics()`
+* `cowboy_metrics_h:metrics()`: Defined in [`cowboy_metrics_h`](https://github.com/ninenines/cowboy/blob/f673e191b30ab440440c924476bb03000fff52c6/src/cowboy_metrics_h.erl#L46)
 
 Note:
 
