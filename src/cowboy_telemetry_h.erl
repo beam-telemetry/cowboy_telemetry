@@ -37,40 +37,56 @@ metrics_callback(#{early_error_time := Time} = Metrics) when is_number(Time) ->
         [cowboy, request, early_error],
         #{system_time => erlang:system_time(), resp_body_length => RespBodyLength},
         Metadata);
-metrics_callback(#{reason := {internal_error, {'EXIT', _, {_, Stacktrace}}, _}} = Metrics) ->
+metrics_callback(#{reason := {internal_error, {'EXIT', _, {Reason, Stacktrace}}, _}} = Metrics) ->
     telemetry:execute(
         [cowboy, request, exception],
         measurements(Metrics),
-        metadata(Metrics, #{kind => exit, stacktrace => Stacktrace}));
+        (metadata(Metrics))#{kind => exit, reason => Reason, stacktrace => Stacktrace});
 metrics_callback(#{reason := {ErrorType, _, _} = Reason} = Metrics)
     when ErrorType == socket_error;
          ErrorType == connection_error ->
     telemetry:execute(
         [cowboy, request, stop],
         measurements(Metrics),
-        metadata(Metrics, #{error => Reason}));
+        (metadata(Metrics))#{error => Reason});
 metrics_callback(Metrics) ->
     telemetry:execute(
         [cowboy, request, stop],
         measurements(Metrics),
-        metadata(Metrics, #{})).
+        metadata(Metrics)).
 
 measurements(Metrics) ->
-    Measurements = maps:with([req_body_length, resp_body_length], Metrics),
-    Durations =
-        #{duration => duration(req_start, req_end, Metrics),
-          req_body_duration => duration(req_body_start, req_body_end, Metrics),
-          resp_duration => duration(resp_start, resp_end, Metrics)},
-    maps:merge(Measurements, Durations).
+    #{req_body_length := ReqBodyLength, resp_body_length := RespBodyLength} = Metrics,
 
-metadata(Metrics, Extra) ->
-    Metadata = maps:with([pid, streamid, req, resp_headers, resp_status, reason, procs, informational, ref], Metrics),
-    maps:merge(Metadata, Extra).
+    #{
+        duration => duration(req_start, req_end, Metrics),
+        req_body_duration => duration(req_body_start, req_body_end, Metrics),
+        resp_duration => duration(resp_start, resp_end, Metrics),
+        req_body_length => ReqBodyLength,
+        resp_body_length => RespBodyLength
+    }.
+
+metadata(Metrics) ->
+    #{
+        pid := Pid,
+        streamid := Streamid,
+        req := Req,
+        resp_headers := RespHeaders,
+        resp_status := RespStatus,
+        ref := Ref
+    } = Metrics,
+
+    #{
+        pid => Pid,
+        streamid => Streamid,
+        req => Req,
+        resp_headers => RespHeaders,
+        resp_status => RespStatus,
+        ref => Ref
+    }.
 
 duration(StartKey, EndKey, Metrics) ->
-    duration(maps:get(StartKey, Metrics, undefined), maps:get(EndKey, Metrics, undefined)).
-
-duration(Start, End) when Start =:= undefined; End =:= undefined ->
-    0;
-duration(Start, End) ->
-    End - Start.
+    case Metrics of
+        #{StartKey := Start, EndKey := End} when is_integer(Start), is_integer(End) -> End - Start;
+        #{} -> 0
+    end.
