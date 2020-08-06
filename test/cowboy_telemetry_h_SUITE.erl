@@ -66,10 +66,7 @@ successful_request(_Config) ->
             ?assert(is_map_key(streamid, StopMetadata)),
             ?assert(is_map_key(req, StopMetadata)),
             ?assert(is_map_key(ref, StopMetadata)),
-            ?assert(is_map_key(procs, StopMetadata)),
-            ?assert(is_map_key(reason, StopMetadata)),
             ?assert(is_map_key(pid, StopMetadata)),
-            ?assert(is_map_key(informational, StopMetadata)),
             ?assert(is_map_key(resp_headers, StopMetadata)),
             ?assert(is_map_key(resp_status, StopMetadata))
     after
