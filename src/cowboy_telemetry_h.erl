@@ -73,7 +73,8 @@ metadata(Metrics) ->
         req := Req,
         resp_headers := RespHeaders,
         resp_status := RespStatus,
-        ref := Ref
+        ref := Ref,
+        user_data := UserData
     } = Metrics,
 
     #{
@@ -82,7 +83,8 @@ metadata(Metrics) ->
         req => Req,
         resp_headers => RespHeaders,
         resp_status => RespStatus,
-        ref => Ref
+        ref => Ref,
+        user_data => UserData
     }.
 
 duration(StartKey, EndKey, Metrics) ->
