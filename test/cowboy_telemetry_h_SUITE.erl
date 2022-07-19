@@ -68,7 +68,8 @@ successful_request(_Config) ->
             ?assert(is_map_key(ref, StopMetadata)),
             ?assert(is_map_key(pid, StopMetadata)),
             ?assert(is_map_key(resp_headers, StopMetadata)),
-            ?assert(is_map_key(resp_status, StopMetadata))
+            ?assert(is_map_key(resp_status, StopMetadata)),
+            ?assert(is_map_key(user_data, StopMetadata))
     after
         1000 -> ct:fail(successful_request_stop_event)
     end,
@@ -131,7 +132,8 @@ failed_request(_Config) ->
             ?assert(is_map_key(streamid, ExceptionMetadata)),
             ?assert(is_map_key(kind, ExceptionMetadata)),
             ?assert(is_map_key(reason, ExceptionMetadata)),
-            ?assert(is_map_key(stacktrace, ExceptionMetadata))
+            ?assert(is_map_key(stacktrace, ExceptionMetadata)),
+            ?assert(is_map_key(user_data, ExceptionMetadata))
     after
         1000 -> ct:fail(failed_request_exception_event)
     end,
@@ -162,7 +164,8 @@ client_timeout_request(_Config) ->
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assert(is_map_key(duration, StopMeasurements)),
             ?assert(is_map_key(streamid, StopMetadata)),
-            ?assert(is_map_key(error, StopMetadata))
+            ?assert(is_map_key(error, StopMetadata)),
+            ?assert(is_map_key(user_data, StopMetadata))
     after
         1000 -> ct:fail(client_timeout_request_stop_event)
     end,
@@ -193,7 +196,8 @@ idle_timeout_request(_Config) ->
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assert(is_map_key(duration, StopMeasurements)),
             ?assert(is_map_key(streamid, StopMetadata)),
-            ?assert(is_map_key(error, StopMetadata))
+            ?assert(is_map_key(error, StopMetadata)),
+            ?assert(is_map_key(user_data, StopMetadata))
     after
         1000 -> ct:fail(idle_timeout_request_stop_event)
     end,
@@ -223,7 +227,8 @@ chunk_timeout_request(_Config) ->
         {[cowboy, request, stop], StopMeasurements, StopMetadata} ->
             ?assert(is_map_key(duration, StopMeasurements)),
             ?assert(is_map_key(streamid, StopMetadata)),
-            ?assert(is_map_key(error, StopMetadata))
+            ?assert(is_map_key(error, StopMetadata)),
+            ?assert(is_map_key(user_data, StopMetadata))
     after
         1000 -> ct:fail(chunk_timeout_request_stop_event)
     end,
